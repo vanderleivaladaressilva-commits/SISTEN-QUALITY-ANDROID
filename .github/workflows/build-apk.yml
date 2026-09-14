@@ -11,10 +11,36 @@ jobs:
       - name: Baixar projeto
         uses: actions/checkout@v4
 
-      - name: Extrair projeto Capacitor
+      - name: Preparar projeto Android
         run: |
+          set -e
+
+          mkdir -p pacote
+
+          # Localiza o pacote enviado ao GitHub
+          OUTER_ZIP=$(find . -maxdepth 2 -type f -iname '*BUILD_APK_GITHUB*.zip' | head -1)
+
+          if [ -n "$OUTER_ZIP" ]; then
+            echo "Pacote encontrado: $OUTER_ZIP"
+            unzip -o "$OUTER_ZIP" -d pacote
+          fi
+
+          # Se o projeto Android estiver dentro de outro ZIP, extrai
+          PROJECT_ZIP=$(find pacote . -type f -name 'SISTEN_QUALITY_V34_6_Projeto_Android.zip' | head -1)
+
+          if [ -z "$PROJECT_ZIP" ]; then
+            echo "ERRO: projeto Android não encontrado."
+            find . -type f | sort
+            exit 1
+          fi
+
+          echo "Projeto encontrado: $PROJECT_ZIP"
+
           mkdir -p app
-          unzip -o SISTEN_QUALITY_V34_6_Projeto_Android.zip -d app
+          unzip -o "$PROJECT_ZIP" -d app
+
+          echo "Conteúdo do projeto:"
+          find app -maxdepth 2 -type f | sort
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -51,3 +77,4 @@ jobs:
         with:
           name: SISTEN-QUALITY-V34-6-APK
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
