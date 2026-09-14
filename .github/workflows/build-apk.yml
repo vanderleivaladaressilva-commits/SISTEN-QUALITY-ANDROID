@@ -11,70 +11,41 @@ jobs:
       - name: Baixar projeto
         uses: actions/checkout@v4
 
-      - name: Preparar projeto Android
-        run: |
-          set -e
-
-          mkdir -p pacote
-
-          # Localiza o pacote enviado ao GitHub
-          OUTER_ZIP=$(find . -maxdepth 2 -type f -iname '*BUILD_APK_GITHUB*.zip' | head -1)
-
-          if [ -n "$OUTER_ZIP" ]; then
-            echo "Pacote encontrado: $OUTER_ZIP"
-            unzip -o "$OUTER_ZIP" -d pacote
-          fi
-
-          # Se o projeto Android estiver dentro de outro ZIP, extrai
-          PROJECT_ZIP=$(find pacote . -type f -name 'SISTEN_QUALITY_V34_6_Projeto_Android.zip' | head -1)
-
-          if [ -z "$PROJECT_ZIP" ]; then
-            echo "ERRO: projeto Android não encontrado."
-            find . -type f | sort
-            exit 1
-          fi
-
-          echo "Projeto encontrado: $PROJECT_ZIP"
-
-          mkdir -p app
-          unzip -o "$PROJECT_ZIP" -d app
-
-          echo "Conteúdo do projeto:"
-          find app -maxdepth 2 -type f | sort
-
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Instalar dependências
-        working-directory: app
-        run: npm install
-
-      - name: Adicionar Android ao Capacitor
-        working-directory: app
-        run: npx cap add android
-
-      - name: Sincronizar aplicação
-        working-directory: app
-        run: npx cap sync android
-
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Dar permissão ao Gradle
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          fi
 
       - name: Compilar APK
-        working-directory: app/android
-        run: ./gradlew assembleDebug
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug
+          elif [ -f "./gradlew.bat" ]; then
+            chmod +x ./gradlew.bat
+            ./gradlew.bat assembleDebug
+          else
+            echo "ERRO: arquivo gradlew não encontrado."
+            echo "O projeto Android/Gradle não está na raiz do repositório."
+            exit 1
+          fi
 
-      - name: Disponibilizar APK
+      - name: Localizar APK
+        run: |
+          echo "APKs encontrados:"
+          find . -type f -name "*.apk" -print
+
+      - name: Disponibilizar APK para download
         uses: actions/upload-artifact@v4
         with:
-          name: SISTEN-QUALITY-V34-6-APK
-          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          name: SISTEN-QUALITY-APK
+          path: |
+            **/build/outputs/apk/**/*.apk
+            **/build/outputs/apk/*.apk
           if-no-files-found: error
