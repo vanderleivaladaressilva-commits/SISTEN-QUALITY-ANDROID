@@ -1,0 +1,53 @@
+name: Gerar APK SISTEN QUALITY
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Extrair projeto Capacitor
+        run: |
+          mkdir -p app
+          unzip -o SISTEN_QUALITY_V34_6_Projeto_Android.zip -d app
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências
+        working-directory: app
+        run: npm install
+
+      - name: Adicionar Android ao Capacitor
+        working-directory: app
+        run: npx cap add android
+
+      - name: Sincronizar aplicação
+        working-directory: app
+        run: npx cap sync android
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Compilar APK
+        working-directory: app/android
+        run: ./gradlew assembleDebug
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SISTEN-QUALITY-V34-6-APK
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
