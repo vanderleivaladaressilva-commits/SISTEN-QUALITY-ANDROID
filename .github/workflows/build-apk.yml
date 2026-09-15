@@ -1,4 +1,4 @@
-name: Gerar APK SISTEN QUALITY
+Gerar APK SISTEN QUALITY
 
 on:
   workflow_dispatch:
