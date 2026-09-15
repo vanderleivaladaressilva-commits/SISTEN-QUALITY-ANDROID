@@ -2,17 +2,19 @@ name: Gerar APK SISTEN QUALITY
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  build-apk:
-    name: Compilar aplicativo Android
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar código do projeto
+      - name: Baixar código
         uses: actions/checkout@v6
 
-      - name: Configurar Java 17
+      - name: Configurar Java
         uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -20,58 +22,17 @@ jobs:
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
 
-      - name: Verificar estrutura do projeto
-        run: |
-          echo "===== ARQUIVOS DO PROJETO ====="
-          find . -maxdepth 3 -type f | sort | head -300
+      - name: Criar Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.9
 
-      - name: Preparar Gradle
-        run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            echo "Gradle Wrapper encontrado na raiz."
-          else
-            echo "Gradle Wrapper não encontrado na raiz."
-            echo "Procurando em subpastas..."
-            find . -name gradlew -type f -print
-          fi
-
-      - name: Compilar APK
-        run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            ./gradlew assembleDebug --no-daemon
-          else
-            GRADLEW=$(find . -name gradlew -type f | head -1)
-
-            if [ -n "$GRADLEW" ]; then
-              PROJECT_DIR=$(dirname "$GRADLEW")
-              chmod +x "$GRADLEW"
-              cd "$PROJECT_DIR"
-              ./gradlew assembleDebug --no-daemon
-            else
-              echo "========================================"
-              echo "ERRO: PROJETO ANDROID NÃO ENCONTRADO"
-              echo "========================================"
-              echo "Não existe gradlew no repositório."
-              echo "O projeto precisa ser convertido para Android/Gradle."
-              exit 1
-            fi
-          fi
-
-      - name: Procurar APK
-        if: success()
-        run: |
-          echo "===== APKs GERADOS ====="
-          find . -type f -name "*.apk" -print
+      - name: Gerar APK
+        run: ./gradlew assembleDebug
 
       - name: Disponibilizar APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: SISTEN-QUALITY-APK
-          path: |
-            **/build/outputs/apk/**/*.apk
-            **/build/outputs/apk/*.apk
-          if-no-files-found: error
+          path: app/build/outputs/apk/debug/app-debug.apk
