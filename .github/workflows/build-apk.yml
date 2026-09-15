@@ -1,4 +1,4 @@
-Gerar APK SISTEN QUALITY
+name: Gerar APK SISTEN QUALITY
 
 on:
   workflow_dispatch:
@@ -24,6 +24,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.9'
+
       - name: Verificar arquivos Gradle
         run: |
           echo "=== ROOT build.gradle ==="
@@ -34,6 +35,7 @@ jobs:
           nl -ba settings.gradle
           echo "=== COMMIT ATUAL ==="
           git log -1 --oneline
+
       - name: Gerar APK
         run: gradle assembleDebug
 
