@@ -24,7 +24,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.9'
-
+      - name: Verificar arquivos Gradle
+        run: |
+          echo "=== ROOT build.gradle ==="
+          nl -ba build.gradle
+          echo "=== APP build.gradle ==="
+          nl -ba app/build.gradle
+          echo "=== SETTINGS.GRADLE ==="
+          nl -ba settings.gradle
+          echo "=== COMMIT ATUAL ==="
+          git log -1 --oneline
       - name: Gerar APK
         run: gradle assembleDebug
 
