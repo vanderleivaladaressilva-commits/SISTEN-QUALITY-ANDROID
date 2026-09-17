@@ -1,6 +1,7 @@
 package com.sisten.quality;
 
 import android.app.Activity;
+import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
@@ -37,12 +38,12 @@ public class MainActivity extends Activity {
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
-        settings.setJavaScriptCanOpenWindowsAutomatically(true);
-        settings.setSupportMultipleWindows(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
 
         CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(
+                webView,
+                true
+        );
 
         webView.setWebViewClient(new WebViewClient() {
 
@@ -55,18 +56,20 @@ public class MainActivity extends Activity {
                 String scheme = uri.getScheme();
 
                 if ("http".equalsIgnoreCase(scheme)
-                        || "https".equalsIgnoreCase(scheme)) {
-                    return false;
-                }
+                        || "https".equalsIgnoreCase(scheme)
+                        || "blob".equalsIgnoreCase(scheme)) {
 
-                if ("blob".equalsIgnoreCase(scheme)) {
                     return false;
                 }
 
                 try {
                     startActivity(
-                            new Intent(Intent.ACTION_VIEW, uri)
+                            new Intent(
+                                    Intent.ACTION_VIEW,
+                                    uri
+                            )
                     );
+
                     return true;
 
                 } catch (ActivityNotFoundException e) {
@@ -79,20 +82,19 @@ public class MainActivity extends Activity {
 
             @Override
             public boolean onShowFileChooser(
-                    WebView webView,
+                    WebView view,
                     ValueCallback<Uri[]> callback,
-                    FileChooserParams fileChooserParams) {
+                    FileChooserParams params) {
 
-                if (MainActivity.this.filePathCallback != null) {
-                    MainActivity.this.filePathCallback.onReceiveValue(null);
+                if (filePathCallback != null) {
+                    filePathCallback.onReceiveValue(null);
                 }
 
-                MainActivity.this.filePathCallback = callback;
+                filePathCallback = callback;
 
                 try {
 
-                    Intent intent =
-                            fileChooserParams.createIntent();
+                    Intent intent = params.createIntent();
 
                     startActivityForResult(
                             intent,
@@ -103,7 +105,7 @@ public class MainActivity extends Activity {
 
                 } catch (ActivityNotFoundException e) {
 
-                    MainActivity.this.filePathCallback = null;
+                    filePathCallback = null;
 
                     Toast.makeText(
                             MainActivity.this,
@@ -116,76 +118,72 @@ public class MainActivity extends Activity {
             }
         });
 
-        webView.setDownloadListener(new DownloadListener() {
+        webView.setDownloadListener(
+                new DownloadListener() {
 
-            @Override
-            public void onDownloadStart(
-                    String url,
-                    String userAgent,
-                    String contentDisposition,
-                    String mimetype,
-                    long contentLength) {
+                    @Override
+                    public void onDownloadStart(
+                            String url,
+                            String userAgent,
+                            String contentDisposition,
+                            String mimetype,
+                            long contentLength) {
 
-                baixarArquivo(
-                        url,
-                        userAgent,
-                        contentDisposition,
-                        mimetype
-                );
-            }
-        });
+                        baixarArquivo(
+                                url,
+                                userAgent,
+                                mimetype
+                        );
+                    }
+                }
+        );
 
-        webView.loadUrl("https://sistenlab.netlify.app");
+        webView.loadUrl(
+                "https://sistenlab.netlify.app"
+        );
     }
 
     private void baixarArquivo(
             String url,
             String userAgent,
-            String contentDisposition,
             String mimetype) {
 
         try {
 
             Uri uri = Uri.parse(url);
 
-            android.app.DownloadManager.Request request =
-                    new android.app.DownloadManager.Request(uri);
+            DownloadManager.Request request =
+                    new DownloadManager.Request(uri);
 
-            request.setTitle("SISTEN QUALITY");
-            request.setDescription("Baixando arquivo");
+            request.setTitle(
+                    "SISTEN QUALITY"
+            );
+
+            request.setDescription(
+                    "Baixando arquivo"
+            );
 
             request.setNotificationVisibility(
-                    android.app.DownloadManager.Request
+                    DownloadManager.Request
                             .VISIBILITY_VISIBLE_NOTIFY_COMPLETED
             );
 
-            String extensao = ".pdf";
+            String extensao = "";
 
-            if (mimetype != null) {
+            if (mimetype != null
+                    && mimetype.contains("pdf")) {
 
-                if (mimetype.contains("pdf")) {
-                    extensao = ".pdf";
-
-                } else if (mimetype.contains("image")) {
-                    extensao = ".jpg";
-
-                } else if (mimetype.contains("word")) {
-                    extensao = ".docx";
-
-                } else if (mimetype.contains("excel")
-                        || mimetype.contains("spreadsheet")) {
-                    extensao = ".xlsx";
-                }
+                extensao = ".pdf";
             }
 
-            String nomeArquivo =
+            String nome =
                     "SISTEN_QUALITY_"
-                            + System.currentTimeMillis()
-                            + extensao;
+                    + System.currentTimeMillis()
+                    + extensao;
 
             request.setDestinationInExternalPublicDir(
                     Environment.DIRECTORY_DOWNLOADS,
-                    nomeArquivo
+                    nome
             );
 
             String cookie =
@@ -194,6 +192,7 @@ public class MainActivity extends Activity {
                             .getCookie(url);
 
             if (cookie != null) {
+
                 request.addRequestHeader(
                         "Cookie",
                         cookie
@@ -201,15 +200,18 @@ public class MainActivity extends Activity {
             }
 
             if (userAgent != null) {
+
                 request.addRequestHeader(
                         "User-Agent",
                         userAgent
                 );
             }
 
-            android.app.DownloadManager manager =
-                    (android.app.DownloadManager)
-                            getSystemService(DOWNLOAD_SERVICE);
+            DownloadManager manager =
+                    (DownloadManager)
+                    getSystemService(
+                            DOWNLOAD_SERVICE
+                    );
 
             if (manager != null) {
 
@@ -242,17 +244,13 @@ public class MainActivity extends Activity {
                             Uri.parse(url)
                     );
 
-            intent.addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK
-            );
-
             startActivity(intent);
 
         } catch (Exception e) {
 
             Toast.makeText(
                     MainActivity.this,
-                    "Não foi possível abrir ou baixar o arquivo.",
+                    "Não foi possível abrir o arquivo.",
                     Toast.LENGTH_LONG
             ).show();
         }
@@ -270,40 +268,59 @@ public class MainActivity extends Activity {
                 data
         );
 
-        if (requestCode == FILE_CHOOSER_REQUEST) {
+        if (requestCode != FILE_CHOOSER_REQUEST) {
+            return;
+        }
 
-            if (filePathCallback == null) {
-                return;
-            }
+        if (filePathCallback == null) {
+            return;
+        }
 
-            Uri[] results = null;
+        Uri[] results = null;
 
-            if (resultCode == RESULT_OK && data != null) {
+        if (resultCode == RESULT_OK
+                && data != null) {
 
-                if (data.getClipData() != null) {
+            if (data.getClipData() != null) {
 
-                    int count =
+                int count =
+                        data.getClipData()
+                                .getItemCount();
+
+                results = new Uri[count];
+
+                for (int i = 0; i < count; i++) {
+
+                    results[i] =
                             data.getClipData()
-                                    .getItemCount();
-
-                    results = new Uri[count];
-
-                    for (int i = 0; i < count; i++) {
-
-                        results[i] =
-                                data.getClipData()
-                                        .getItemAt(i)
-                                        .getUri();
-                    }
-
-                } else if (data.getData() != null) {
-
-                    results = new Uri[]{
-                            data.getData()
-                    };
+                                    .getItemAt(i)
+                                    .getUri();
                 }
-            }
 
-            filePathCallback.onReceiveValue(results);
-            filePathCallback = null;
-       
+            } else if (data.getData() != null) {
+
+                results = new Uri[]{
+                        data.getData()
+                };
+            }
+        }
+
+        filePathCallback.onReceiveValue(results);
+
+        filePathCallback = null;
+    }
+
+    @Override
+    public void onBackPressed() {
+
+        if (webView != null
+                && webView.canGoBack()) {
+
+            webView.goBack();
+
+        } else {
+
+            super.onBackPressed();
+        }
+    }
+}
