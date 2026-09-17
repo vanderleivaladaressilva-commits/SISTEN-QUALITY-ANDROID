@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -34,14 +35,14 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
-
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setSupportMultipleWindows(true);
-
         settings.setMediaPlaybackRequiresUserGesture(false);
+
+        CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
 
         webView.setWebViewClient(new WebViewClient() {
 
@@ -55,13 +56,17 @@ public class MainActivity extends Activity {
 
                 if ("http".equalsIgnoreCase(scheme)
                         || "https".equalsIgnoreCase(scheme)) {
+                    return false;
+                }
 
+                if ("blob".equalsIgnoreCase(scheme)) {
                     return false;
                 }
 
                 try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                    startActivity(intent);
+                    startActivity(
+                            new Intent(Intent.ACTION_VIEW, uri)
+                    );
                     return true;
 
                 } catch (ActivityNotFoundException e) {
@@ -70,24 +75,19 @@ public class MainActivity extends Activity {
             }
         });
 
-        /*
-         * Permite anexar arquivos pelo celular.
-         */
         webView.setWebChromeClient(new WebChromeClient() {
 
             @Override
             public boolean onShowFileChooser(
                     WebView webView,
-                    ValueCallback<Uri[]> filePathCallback,
+                    ValueCallback<Uri[]> callback,
                     FileChooserParams fileChooserParams) {
 
                 if (MainActivity.this.filePathCallback != null) {
-                    MainActivity.this.filePathCallback
-                            .onReceiveValue(null);
+                    MainActivity.this.filePathCallback.onReceiveValue(null);
                 }
 
-                MainActivity.this.filePathCallback =
-                        filePathCallback;
+                MainActivity.this.filePathCallback = callback;
 
                 try {
 
@@ -116,9 +116,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        /*
-         * Permite baixar relatórios e arquivos.
-         */
         webView.setDownloadListener(new DownloadListener() {
 
             @Override
@@ -129,92 +126,138 @@ public class MainActivity extends Activity {
                     String mimetype,
                     long contentLength) {
 
-                try {
-
-                    android.app.DownloadManager.Request request =
-                            new android.app.DownloadManager.Request(
-                                    Uri.parse(url)
-                            );
-
-                    request.setTitle("SISTEN QUALITY");
-                    request.setDescription(
-                            "Baixando relatório"
-                    );
-
-                    if (mimetype != null) {
-                        request.setMimeType(mimetype);
-                    }
-
-                    request.setNotificationVisibility(
-                            android.app.DownloadManager
-                                    .Request
-                                    .VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                    );
-
-                    String extensao = "";
-
-                    if (mimetype != null
-                            && mimetype.contains("pdf")) {
-
-                        extensao = ".pdf";
-                    }
-
-                    request.setDestinationInExternalPublicDir(
-                            Environment.DIRECTORY_DOWNLOADS,
-                            "SISTEN_QUALITY_"
-                                    + System.currentTimeMillis()
-                                    + extensao
-                    );
-
-                    android.app.DownloadManager downloadManager =
-                            (android.app.DownloadManager)
-                                    getSystemService(
-                                            DOWNLOAD_SERVICE
-                                    );
-
-                    downloadManager.enqueue(request);
-
-                    Toast.makeText(
-                            MainActivity.this,
-                            "Download iniciado. Verifique a pasta Downloads.",
-                            Toast.LENGTH_LONG
-                    ).show();
-
-                } catch (Exception e) {
-
-                    try {
-
-                        Intent intent =
-                                new Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse(url)
-                                );
-
-                        startActivity(intent);
-
-                    } catch (Exception ignored) {
-
-                        Toast.makeText(
-                                MainActivity.this,
-                                "Não foi possível baixar o arquivo.",
-                                Toast.LENGTH_SHORT
-                        ).show();
-                    }
-                }
+                baixarArquivo(
+                        url,
+                        userAgent,
+                        contentDisposition,
+                        mimetype
+                );
             }
         });
 
-        /*
-         * Abre o sistema SISTEN QUALITY.
-         */
-        webView.loadUrl(
-                "https://sistenlab.netlify.app"
-        );
+        webView.loadUrl("https://sistenlab.netlify.app");
     }
 
-    /*
-     * Recebe o arquivo escolhido pelo usuário.
-     */
+    private void baixarArquivo(
+            String url,
+            String userAgent,
+            String contentDisposition,
+            String mimetype) {
+
+        try {
+
+            Uri uri = Uri.parse(url);
+
+            android.app.DownloadManager.Request request =
+                    new android.app.DownloadManager.Request(uri);
+
+            request.setTitle("SISTEN QUALITY");
+            request.setDescription("Baixando arquivo");
+
+            request.setNotificationVisibility(
+                    android.app.DownloadManager.Request
+                            .VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+            );
+
+            String extensao = ".pdf";
+
+            if (mimetype != null) {
+
+                if (mimetype.contains("pdf")) {
+                    extensao = ".pdf";
+
+                } else if (mimetype.contains("image")) {
+                    extensao = ".jpg";
+
+                } else if (mimetype.contains("word")) {
+                    extensao = ".docx";
+
+                } else if (mimetype.contains("excel")
+                        || mimetype.contains("spreadsheet")) {
+                    extensao = ".xlsx";
+                }
+            }
+
+            String nomeArquivo =
+                    "SISTEN_QUALITY_"
+                            + System.currentTimeMillis()
+                            + extensao;
+
+            request.setDestinationInExternalPublicDir(
+                    Environment.DIRECTORY_DOWNLOADS,
+                    nomeArquivo
+            );
+
+            String cookie =
+                    CookieManager
+                            .getInstance()
+                            .getCookie(url);
+
+            if (cookie != null) {
+                request.addRequestHeader(
+                        "Cookie",
+                        cookie
+                );
+            }
+
+            if (userAgent != null) {
+                request.addRequestHeader(
+                        "User-Agent",
+                        userAgent
+                );
+            }
+
+            android.app.DownloadManager manager =
+                    (android.app.DownloadManager)
+                            getSystemService(DOWNLOAD_SERVICE);
+
+            if (manager != null) {
+
+                manager.enqueue(request);
+
+                Toast.makeText(
+                        MainActivity.this,
+                        "Download iniciado. Verifique a pasta Downloads.",
+                        Toast.LENGTH_LONG
+                ).show();
+
+            } else {
+
+                abrirArquivo(url);
+            }
+
+        } catch (Exception e) {
+
+            abrirArquivo(url);
+        }
+    }
+
+    private void abrirArquivo(String url) {
+
+        try {
+
+            Intent intent =
+                    new Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(url)
+                    );
+
+            intent.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+            );
+
+            startActivity(intent);
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    MainActivity.this,
+                    "Não foi possível abrir ou baixar o arquivo.",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+    }
+
     @Override
     protected void onActivityResult(
             int requestCode,
@@ -235,12 +278,8 @@ public class MainActivity extends Activity {
 
             Uri[] results = null;
 
-            if (resultCode == RESULT_OK
-                    && data != null) {
+            if (resultCode == RESULT_OK && data != null) {
 
-                /*
-                 * Vários arquivos.
-                 */
                 if (data.getClipData() != null) {
 
                     int count =
@@ -257,9 +296,6 @@ public class MainActivity extends Activity {
                                         .getUri();
                     }
 
-                /*
-                 * Um arquivo.
-                 */
                 } else if (data.getData() != null) {
 
                     results = new Uri[]{
@@ -269,25 +305,5 @@ public class MainActivity extends Activity {
             }
 
             filePathCallback.onReceiveValue(results);
-
             filePathCallback = null;
-        }
-    }
-
-    /*
-     * Botão voltar do Android.
-     */
-    @Override
-    public void onBackPressed() {
-
-        if (webView != null
-                && webView.canGoBack()) {
-
-            webView.goBack();
-
-        } else {
-
-            super.onBackPressed();
-        }
-    }
-}
+       
